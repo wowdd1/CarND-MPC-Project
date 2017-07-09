@@ -1,5 +1,34 @@
-# CarND-Controls-MPC
-Self-Driving Car Engineer Nanodegree Program
+# MPC Control
+Udacity Self-Driving Car Nanodegree Term 2, Project 5
+
+## Reflection
+### The Model
+My MPC model starts out by taking in certain information from the simulator: 
+* ptsx (x-position of waypoints ahead on the track in global coordinates)
+* ptsy (y-position of waypoints ahead on the track in global coordinates)
+* px (current x-position of the vehicle's position in global coordinates)
+* py (current y-position of the vehicle's position in global coordinates)
+* psi (current orientation angle of the vehicle, converted from the simulator's format to that expected in mathematical formulas)
+* v (current velocity of the vehicle)
+* delta (current steering angle of the car, i.e. where the wheels are turned, as opposed to the actual orientation of the car in the simulator at that point [psi])
+* a (current throttle)
+
+the update equations for update state is at 124-130 lines of "MPC.cpp"
+
+### Polynomial Fitting & Preprocessing
+
+I transform the points from the simulator's global coordinates into the vehicle's coordinates. This is done in lines 102-107 of `main.cpp`. First, each of the waypoints are adjusted by subtracting out px and py accordingly such that they are based on the vehicle's position. Next, the waypoint coordinates are changed using standard 2d vector transformation equations to be in vehicle coordinates:
+* ptsx_car[i] = x * cos(-psi) - y * sin(-psi)
+* ptsy_car[i] = x * sin(-psi) + y * cos(-psi)
+
+### Tuning Timesteps (N) and Timestep Duration (dt) in MPC.cpp
+I originally was using values of 15 for N and 0.2 for dt, because I thought 3 second (15 x 0.2 seconds) would be a good prediction span, and I also had thought I could account for latency in this way. However, I found 0.2 to be way too slow to react, plus I began accounting for latency in the `main.cpp` file. I also found the model seemed to slow down if N was higher, so I eventually settled on 10 for N, which meant that with 0.1 dt, I was only predicting for one second essentially. Given that the car can reach speeds of nearly 100 mph without any extremely erratic driving, this looks to be a great final spot for N and dt.
+
+
+### Accounting for Latency
+my model accounts for the simulator's added 100ms latency between the actuator calculation (when the model tells the car to perform a steering or acceleration/braking change) and when the simulator will actually perform that action.
+
+I added in a step to predict where the vehicle would be after 100ms (0.1 seconds), in order to take the action that needed to actually be taken at that time, instead of the one in reaction to an old situation. I set the "dt" value here to equal the latency. Then, using the same update equations as those used in the actual MPC model, I predicted the state and fed that into the true model. This new predicted state, along with the coefficients, are then fed into the `mpc.Solve()` function found in `MPC.cpp`.
 
 ---
 
@@ -41,75 +70,9 @@ Self-Driving Car Engineer Nanodegree Program
 * Simulator. You can download these from the [releases tab](https://github.com/udacity/self-driving-car-sim/releases).
 * Not a dependency but read the [DATA.md](./DATA.md) for a description of the data sent back from the simulator.
 
-
 ## Basic Build Instructions
-
 
 1. Clone this repo.
 2. Make a build directory: `mkdir build && cd build`
 3. Compile: `cmake .. && make`
 4. Run it: `./mpc`.
-
-## Tips
-
-1. It's recommended to test the MPC on basic examples to see if your implementation behaves as desired. One possible example
-is the vehicle starting offset of a straight line (reference). If the MPC implementation is correct, after some number of timesteps
-(not too many) it should find and track the reference line.
-2. The `lake_track_waypoints.csv` file has the waypoints of the lake track. You could use this to fit polynomials and points and see of how well your model tracks curve. NOTE: This file might be not completely in sync with the simulator so your solution should NOT depend on it.
-3. For visualization this C++ [matplotlib wrapper](https://github.com/lava/matplotlib-cpp) could be helpful.
-
-## Editor Settings
-
-We've purposefully kept editor configuration files out of this repo in order to
-keep it as simple and environment agnostic as possible. However, we recommend
-using the following settings:
-
-* indent using spaces
-* set tab width to 2 spaces (keeps the matrices in source code aligned)
-
-## Code Style
-
-Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
-
-## Project Instructions and Rubric
-
-Note: regardless of the changes you make, your project must be buildable using
-cmake and make!
-
-More information is only accessible by people who are already enrolled in Term 2
-of CarND. If you are enrolled, see [the project page](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/b1ff3be0-c904-438e-aad3-2b5379f0e0c3/concepts/1a2255a0-e23c-44cf-8d41-39b8a3c8264a)
-for instructions and the project rubric.
-
-## Hints!
-
-* You don't have to follow this directory structure, but if you do, your work
-  will span all of the .cpp files here. Keep an eye out for TODOs.
-
-## Call for IDE Profiles Pull Requests
-
-Help your fellow students!
-
-We decided to create Makefiles with cmake to keep this project as platform
-agnostic as possible. Similarly, we omitted IDE profiles in order to we ensure
-that students don't feel pressured to use one IDE or another.
-
-However! I'd love to help people get up and running with their IDEs of choice.
-If you've created a profile for an IDE that you think other students would
-appreciate, we'd love to have you add the requisite profile files and
-instructions to ide_profiles/. For example if you wanted to add a VS Code
-profile, you'd add:
-
-* /ide_profiles/vscode/.vscode
-* /ide_profiles/vscode/README.md
-
-The README should explain what the profile does, how to take advantage of it,
-and how to install it.
-
-Frankly, I've never been involved in a project with multiple IDE profiles
-before. I believe the best way to handle this would be to keep them out of the
-repo root to avoid clutter. My expectation is that most profiles will include
-instructions to copy files to a new location to get picked up by the IDE, but
-that's just a guess.
-
-One last note here: regardless of the IDE used, every submitted project must
-still be compilable with cmake and make./
